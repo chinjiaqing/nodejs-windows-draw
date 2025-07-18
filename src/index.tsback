@@ -1,0 +1,64 @@
+import koffi from "koffi";
+
+// 类型别名
+koffi.alias("HWND", "void*");
+koffi.alias("HDC", "void*");
+koffi.alias("HBRUSH", "void*");
+koffi.alias("LPRECT", "void*");
+
+// RECT 结构体定义
+const RECT = koffi.struct("RECT", {
+	left: "long",
+	top: "long",
+	right: "long",
+	bottom: "long",
+});
+
+const user32 = koffi.load("user32.dll");
+const gdi32 = koffi.load("gdi32.dll");
+
+const GetDC = user32.func("HDC __stdcall GetDC(HWND hWnd)");
+const ReleaseDC = user32.func("int __stdcall ReleaseDC(HWND hWnd, HDC hDC)");
+const GetSystemMetrics = user32.func("int __stdcall GetSystemMetrics(int nIndex)");
+
+const CreateSolidBrush = gdi32.func("HBRUSH __stdcall CreateSolidBrush(uint32 color)");
+const FillRect = user32.func("int __stdcall FillRect(HDC hDC, LPRECT lprc, HBRUSH hbr)");
+const DeleteObject = gdi32.func("int __stdcall DeleteObject(void* hObject)");
+
+function drawFullScreenRect() {
+	const hdc = GetDC(null);
+	if (!hdc) {
+		console.error("GetDC(NULL) failed");
+		return;
+	}
+
+	const SM_CXSCREEN = 0;
+	const SM_CYSCREEN = 1;
+	const width = GetSystemMetrics(SM_CXSCREEN);
+	const height = GetSystemMetrics(SM_CYSCREEN);
+
+	// 申请 RECT 数组（长度为 1）
+	const rect = koffi.alloc(RECT, 1);
+
+	// 设置 RECT 的成员
+	rect[0].left = 0;
+	rect[0].top = 0;
+	rect[0].right = width;
+	rect[0].bottom = height;
+
+	// 创建绿色画刷（BGR 格式）
+	const brush = CreateSolidBrush(0x0000ff00);
+
+	// 填充矩形
+	const ret = FillRect(hdc, rect.buffer, brush);
+	if (ret === 0) {
+		console.error("FillRect failed");
+	} else {
+		console.log("FillRect success");
+	}
+
+	DeleteObject(brush);
+	ReleaseDC(null, hdc);
+}
+
+drawFullScreenRect();
